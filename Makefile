@@ -1,0 +1,3 @@
+compile:
+	python compile.py
+
