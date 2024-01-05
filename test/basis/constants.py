@@ -47,18 +47,18 @@ p = a1p2 * a3p4 / (a1p2 + a3p4)
 Q2 = np.linalg.norm(X34-X12)**2.0
 
 ### PG
-PG1_1s = PrimitiveGaussian(a1, X1)
+PG1_1s = PrimitiveGaussian(a1, X1.flatten(), 0, 0, 0)
 A1 = PG1_1s.A
 E1 = PG1_1s.angular_exponents
 
-PG2_1s = PrimitiveGaussian(a2, X2)
+PG2_1s = PrimitiveGaussian(a2, X2.flatten(), 0, 0, 0)
 A2 = PG2_1s.A
 exponents2 = E2 = PG2_1s.angular_exponents
 
-PG3_1s = PrimitiveGaussian(a3, X3)
+PG3_1s = PrimitiveGaussian(a3, X3.flatten(), 0, 0, 0)
 A3 = PG3_1s.A
 exponents3 = E3 = PG3_1s.angular_exponents
 
-PG4_1s = PrimitiveGaussian(a4, X4)
+PG4_1s = PrimitiveGaussian(a4, X4.flatten(), 0, 0, 0)
 A4 = PG4_1s.A
 exponents4 = E4 = PG4_1s.angular_exponents

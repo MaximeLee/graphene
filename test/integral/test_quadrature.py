@@ -1,7 +1,8 @@
 import numpy as np
 import math 
 from graphene.integral.quadrature import *
-from graphene.basis.gaussian import integral
+#from graphene.basis.gaussian import integral
+from graphene.basis.gaussian import gaussian_integral
 
 pi = np.pi
 atol = 1e-16
@@ -34,7 +35,7 @@ class TestQuadratureGauss:
 
         for n in range(20):
 
-            I_true = integral(self.a, n)
+            I_true = gaussian_integral(self.a, n)
             integrand = angular_gaussian(np.arctanh(self.abscissa), n, self.a) / (1.0 - self.abscissa**2.0)
             I_quadrature = np.dot(self.weights, integrand)
             
@@ -87,7 +88,7 @@ class TestSphericalQuadrature:
         R2 = np.linalg.norm(self.points, axis = 1, keepdims = True)**2
         for alpha in np.linspace(1e-1, 1e3, 10):
             I_quad = 4.0*pi*np.einsum('ij,ij', self.weights,  np.prod(self.points, axis=1, keepdims=True)**2 * self.subs * np.exp(-alpha*R2))
-            I_true = integral(alpha,2) **3
+            I_true = gaussian_integral(alpha,2) **3
             assert np.isclose(I_true, I_quad)
 
     def test_gaussian_3(self):
