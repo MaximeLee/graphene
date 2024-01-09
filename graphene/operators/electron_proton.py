@@ -2,7 +2,7 @@
 import numpy as np
 from graphene.basis.gaussian import PrimitiveGaussian
 
-def nuclear_attraction_operator_gaussian(CPG_list, molecule):
+def nuclear_attraction_operator_gaussian(CPG_list, molecule, Chebyshev_quadrature_points_01):
 
     n = len(CPG_list)
     Vep = np.zeros([n,n])
@@ -21,12 +21,12 @@ def nuclear_attraction_operator_gaussian(CPG_list, molecule):
     
                 for k in range(n_i):
                     PG_i = CPG_i.PG_list[k]
-                    c_i = CPG_i.coeff[k]
+                    c_i = CPG_i.coeff_list[k]
     
                     for l in range(n_j):
                         PG_j = CPG_j.PG_list[l]
-                        c_j = CPG_j.coeff[l]
+                        c_j = CPG_j.coeff_list[l]
     
-                        Vep[i,j] += c_i * c_j * PrimitiveGaussian.electron_proton_int(PG_i, PG_j, Rp, Z)
+                        Vep[i,j] += c_i * c_j * PrimitiveGaussian.electron_proton_int(PG_i, PG_j, Rp, Z, Chebyshev_quadrature_points_01)
 
     return Vep

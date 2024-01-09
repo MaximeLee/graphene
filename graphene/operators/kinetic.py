@@ -26,11 +26,11 @@ def kinetic_operator_gaussian(CPG_list):
 
             for k in range(n_i):
                 PG_i = CPG_i.PG_list[k]
-                c_i = CPG_i.coeff[k]
+                c_i = CPG_i.coeff_list[k]
 
                 for l in range(n_j):
                     PG_j = CPG_j.PG_list[l]
-                    c_j = CPG_j.coeff[l]
+                    c_j = CPG_j.coeff_list[l]
 
                     kinetic[i,j] += c_i * c_j * PrimitiveGaussian.kinetic_int(PG_i, PG_j)
 

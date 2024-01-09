@@ -1,7 +1,7 @@
 import numpy as np
 from copy import deepcopy as dcp
 import math
-from graphene.constants import pi
+from graphene.constants_py import pi
 
 theta = pi/3.0 # pi*180/60
 

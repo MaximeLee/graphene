@@ -74,7 +74,7 @@ class TestSphericalQuadrature:
 
     weights = R3_quadrature_points[:,0:1]
     points = R3_quadrature_points[:,1:]
-    subs = subs
+    subs = subs.reshape(-1,1)
 
     def test_gaussian_1(self):
         """test on 3d gaussian integral"""
@@ -103,7 +103,7 @@ class TestSphericalQuadrature:
 
             for k2 in range(num_R3):
                 wk_xyz2, x2, y2, z2 = R3_quadrature_points[k2]
-                subs2 = subs[k2,0]
+                subs2 = subs[k2]
                 R2 = np.array([[x2, y2, z2]]) + R2_bar # centering quadrature pts
 
                 I_tmp_R2 += wk_xyz2 * math.exp(-alpha*np.linalg.norm(R2-R2_bar)**2) * subs2

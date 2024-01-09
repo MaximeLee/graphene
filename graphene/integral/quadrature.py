@@ -4,7 +4,7 @@ import os
 import warnings
 import numpy as np
 
-from graphene.constants import pi
+from graphene.constants_py import pi
 
 
 def tensor_prod(X1: np.ndarray, X2: np.ndarray) -> np.ndarray:
@@ -109,7 +109,7 @@ R3_quadrature_points = np.hstack([R3_weights_quadrature, R3_points_quadrature])
 Mu_int = (R - rm) / (R + rm)
 
 # to multiply the integrand with because of the variable substitution
-subs = (R**2 * 2.0 * rm / (1.0 - Mu_int) ** 2).reshape(-1, 1)
+subs = (R**2 * 2.0 * rm / (1.0 - Mu_int) ** 2) #.reshape(-1, 1)
 
 del (R3_points_quadrature, R3_weights_quadrature)
 del (Chebyshev_weights, Lebedev_weights)

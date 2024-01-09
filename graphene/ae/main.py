@@ -1,3 +1,4 @@
+import gc
 import os
 import sys
 import numpy as np
@@ -7,8 +8,10 @@ from graphene.basis.gaussian import PrimitiveGaussian, ContractedGaussian
 from graphene.basis import gaussian
 from graphene.operators import *
 from graphene.ae.molecule import Molecule
+from graphene.integral.quadrature import Chebyshev_quadrature_points_01, R3_quadrature_points, subs
 
 from graphene.energy import *
+
 
 # get position of 6 atoms of unit cell
 X_atoms = get_cell()[0]
@@ -22,7 +25,7 @@ with open(path,'r') as coeff_file:
 # loop over Carbon atom
 CG_list = []
 for i in range(6):
-    X_i = X_atoms[i:i+1]
+    X_i = X_atoms[i]
 
     # read 1s contracted gaussians
     contraction_coefficients = []
@@ -31,11 +34,11 @@ for i in range(6):
         row = data[i].strip().split()
         gaussian_exponent = float(row[0])
     
-        PG_list_1s.append(PrimitiveGaussian(alpha=gaussian_exponent, atom_position=X_i))
+        PG_list_1s.append(PrimitiveGaussian(alpha=gaussian_exponent, atom_position=X_i, ex = 0, ey = 0, ez=0))
     
         contraction_coefficients.append(float(row[1]))
 
-    CG_1s = ContractedGaussian(contraction_coefficients, PG_list_1s)
+    CG_1s = ContractedGaussian(np.array(contraction_coefficients), np.array(PG_list_1s))
 
     # read 2s and 2p contracted gaussians
     PG_list_2s = []
@@ -51,7 +54,7 @@ for i in range(6):
         row = data[i+5].strip().split()
         gaussian_exponent = float(row[0])
     
-        PG_list_2s.append(PrimitiveGaussian(alpha=gaussian_exponent, atom_position=X_i))
+        PG_list_2s.append(PrimitiveGaussian(alpha=gaussian_exponent, atom_position=X_i, ex = 0, ey = 0, ez=0))
         PG_list_2px.append(PrimitiveGaussian(alpha=gaussian_exponent, atom_position=X_i, ex=1, ey=0, ez=0))
         PG_list_2py.append(PrimitiveGaussian(alpha=gaussian_exponent, atom_position=X_i, ex=0, ey=1, ez=0))
         PG_list_2pz.append(PrimitiveGaussian(alpha=gaussian_exponent, atom_position=X_i, ex=0, ey=0, ez=1))
@@ -61,15 +64,19 @@ for i in range(6):
         contraction_coefficients_2py.append(float(row[2]))
         contraction_coefficients_2pz.append(float(row[2]))
 
-    CG_2s = ContractedGaussian(contraction_coefficients_2s, PG_list_2s)
-    CG_2px = ContractedGaussian(contraction_coefficients_2s, PG_list_2px)
-    CG_2py = ContractedGaussian(contraction_coefficients_2s, PG_list_2py)
-    CG_2pz = ContractedGaussian(contraction_coefficients_2s, PG_list_2pz)
+    CG_2s = ContractedGaussian( np.array(contraction_coefficients_2s), np.array(PG_list_2s))
+    CG_2px = ContractedGaussian(np.array(contraction_coefficients_2s), np.array(PG_list_2px))
+    CG_2py = ContractedGaussian(np.array(contraction_coefficients_2s), np.array(PG_list_2py))
+    CG_2pz = ContractedGaussian(np.array(contraction_coefficients_2s), np.array(PG_list_2pz))
 
     # add to list
     CG_list.extend([CG_1s, CG_2s, CG_2px, CG_2py, CG_2pz])
 
+CG_list = np.array(CG_list)
+
 del(data)
+del(contraction_coefficients, contraction_coefficients_2s, contraction_coefficients_2px, contraction_coefficients_2py, contraction_coefficients_2pz)
+gc.collect()
 
 # compute operators for each spin
 print("Computing operators...")
@@ -79,9 +86,9 @@ print('kinetic and overlap done!')
 
 unit_cell = Molecule()
 for xyz in X_atoms:
-    unit_cell.add_atom('C', xyz.reshape(1,-1))
-Vep = nuclear_attraction_operator_gaussian(CG_list, unit_cell)
+    unit_cell.add_atom('C', xyz)
+Vep = nuclear_attraction_operator_gaussian(CG_list, unit_cell, Chebyshev_quadrature_points_01)
 print('nuclear attraction done!')
-Vee = electron_repulsion_operator_gaussian(CG_list)
+Vee = electron_repulsion_operator_gaussian(CG_list, Chebyshev_quadrature_points_01, R3_quadrature_points, subs)
 print('electronic repulsion done!')
 Epp = proton_proton_energy(unit_cell)
