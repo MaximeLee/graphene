@@ -6,6 +6,7 @@ from libc.math cimport sqrt, pow, exp, abs
 from graphene.c_ops cimport dot, prod, add, elementwise_multiply, constant_multiply, elementwise_pow
 import numpy as np
 cimport numpy as cnp
+from cython.parallel import prange
 cnp.import_array()
 
 #from graphene.integral.quadrature import Chebyshev_quadrature_points_01, R3_quadrature_points, subs
@@ -278,10 +279,16 @@ cdef class PrimitiveGaussian:
             )
 
             # integrating over R2
-            for k2 in range(num_R3):
-                wk_xyz2 = R3_quadrature_points[k2, 0]
-                R2 = np.array(R3_quadrature_points[k2, 1:4])
-                subs2 = subs[k2]
+            for k2 in prange(num_R3, nogil=True):
+                with gil:
+                    wk_xyz2 = R3_quadrature_points[k2, 0]
+                    R2 = np.array(R3_quadrature_points[k2, 1:4])
+                    subs2 = subs[k2]
+                    dR2 = np.subtract(R2,R2_bar)
+                    angular_tmp = prod(elementwise_multiply(
+                        elementwise_pow(np.subtract(R2,X3), E3), 
+                        elementwise_pow(np.subtract(R2,X4), E4))
+                    )
 
                 R2 = add(R2, R2_bar) # centering quadrature pts
                 I_tmp_R1 = 1.0
@@ -292,11 +299,6 @@ cdef class PrimitiveGaussian:
                         X12, R2, a1p2, tk2*p/(1-tk2), E1, E2, R1_mu
                     )
 
-                dR2 = np.subtract(R2,R2_bar)
-                angular_tmp = prod(elementwise_multiply(
-                    elementwise_pow(np.subtract(R2,X3), E3), 
-                    elementwise_pow(np.subtract(R2,X4), E4))
-                )
                 E2_tmp = exp(-a1p2 * a3p4 / (a1p2 + tk2 * (p - a1p2)) * dot(dR2, dR2))
                 I_tmp_t += 4.0 * pi * wk_xyz2 * subs2 * angular_tmp * E2_tmp * exp(-p * tk2 * X12_34) * I_tmp_R1
 
