@@ -179,7 +179,7 @@ class PrimitiveGaussian:
 ##################################
 # Numba : function to be compiled just in time (JIT)
 ##################################
-@jit("float64(float64, int64)",cache=True)
+@jit(cache=True, fastmath = {'fast'}, nopython=True)
 def integral(alpha: float, n: int):
     """integral over R of x^n exp(-alpha x^2)"""
     # odd exponent
@@ -192,23 +192,25 @@ def integral(alpha: float, n: int):
     return m.sqrt(pi / alpha) / (2.0 * alpha) ** nn * np.prod(2.0 * np.arange(nn) + 1)
 
 
-@jit(cache=True)
+@jit(cache=True, fastmath = {'fast'}, nopython=True)
 def normalization_constant(alpha, ex, ey, ez):
     """computing the normalisation constant of the primitive Gaussian"""
 
+    alpha2 = 2.0 * alpha
+
     # integral in x
-    int_x = integral(2.0 * alpha, 2 * ex)
+    int_x = integral(alpha2, 2 * ex)
 
     # integralgral in y
-    int_y = integral(2.0 * alpha, 2 * ey)
+    int_y = integral(alpha2, 2 * ey)
 
     # integralgral in z
-    int_z = integral(2.0 * alpha, 2 * ez)
+    int_z = integral(alpha2, 2 * ez)
 
     return 1.0 / m.sqrt(int_x * int_y * int_z)
 
 
-@jit(cache=True)
+@jit(cache=True, fastmath = {'fast'}, nopython=True)
 def custom_comb(n, k):
     if k > n - k:
         k = n - k
@@ -219,7 +221,7 @@ def custom_comb(n, k):
     return result
 
 
-@jit(cache=True)
+@jit(cache=True, fastmath = {'fast'}, nopython=True)
 def overlap_int_coo(X1, X2, a1, a2, E1, E2, coo):
     """overlap integral comouted with the Binomial theorem for each coordinate
     coo (int) : coordinate index to integrate over (x:0, y:1, z:2)
@@ -244,7 +246,7 @@ def overlap_int_coo(X1, X2, a1, a2, E1, E2, coo):
     return I
 
 
-@jit(cache=True)
+@jit(cache=True, nopython=True)
 def kinetic_int_coo(X1, X2, a1, a2, E1, E2, coo):
     """kinetic integral comouted with the Binomial theorem for each coordinate
     coo (int) : coordinate index to integrate over (x:0, y:1, z:2)
@@ -302,7 +304,7 @@ def electron_proton_int_jit(
 
     return I
 
-@jit(parallel=True, cache=True, nopython=True, nogil=True)
+#@jit(parallel=True, cache=True, nopython=True, nogil=True, fastmath={'fast'})
 def electron_electron_int_jit(
     a1,
     X1,
@@ -368,7 +370,10 @@ def electron_electron_int_jit(
                     X12, R2, a1p2, tk2*p/(1-tk2), E1, E2, R1_mu
                 )
 
-            I_tmp_t += 4.0 * pi * wk_xyz2 * subs2 * np.prod((R2-X3)**E3 * (R2-X4)**E4) * m.exp(-a1p2 * a3p4 / (a1p2 + tk2 * (p - a1p2)) * np.linalg.norm(R2-R2_bar)**2 ) * m.exp(-p * tk2 * X12_34) * I_tmp_R1
+            angular_part = np.prod((R2-X3)**E3 * (R2-X4)**E4)
+            exp_tmp1 = m.exp(-a1p2 * a3p4 / (a1p2 + tk2 * (p - a1p2)) * np.linalg.norm(R2-R2_bar)**2)
+            exp_tmp2 = m.exp(-p * tk2 * X12_34)
+            I_tmp_t += 4.0 * pi * wk_xyz2 * subs2 * angular_part * exp_tmp1 * exp_tmp2 * I_tmp_R1
 
         I += wkt / (1.0 - tk2) ** (3.0 / 2.0) * I_tmp_t
     return 2.0 * AA * E12 * E34 * m.sqrt(p / pi) * I
