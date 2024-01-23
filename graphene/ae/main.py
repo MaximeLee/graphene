@@ -1,6 +1,12 @@
 import os
 import sys
 import numpy as np
+import scipy as scp
+import gc
+import csv
+import pandas as pd
+from mpl_toolkits import mplot3d
+import matplotlib.pyplot as plt
 
 from graphene.cell import get_cell
 from graphene.basis.gaussian import PrimitiveGaussian, ContractedGaussian
@@ -70,14 +76,209 @@ del(data)
 
 # compute operators for each spin
 print("Computing operators...")
-S = overlap_operator_gaussian(CG_list)
-T = kinetic_operator_gaussian(CG_list)
+if os.path.exists('S.npy'):
+    S = np.load('S.npy')
+else:
+    S = overlap_operator_gaussian(CG_list)
+    np.save('S.npy', S)
+
+if os.path.exists('T.npy'):
+    T = np.load('T.npy')
+else:
+    T = kinetic_operator_gaussian(CG_list)
+    np.save('T.npy', T)
 print('kinetic and overlap done!')
 
 M = Molecule()
 M.add_atom('C', C_position)
-Vep = nuclear_attraction_operator_gaussian(CG_list, M)
+if os.path.exists('Vep.npy'):
+    Vep = np.load('Vep.npy')
+else:
+    Vep = nuclear_attraction_operator_gaussian(CG_list, M)
+    np.save('Vep.npy', Vep)
 print('nuclear attraction done!')
-Vee = electron_repulsion_operator_gaussian(CG_list)
+
+if os.path.exists('Vee.npy'):
+    Vee_ = np.load('Vee.npy')
+else:
+    Vee_ = electron_repulsion_operator_gaussian(CG_list)
+    np.save('Vee.npy', Vee_)
 print('electronic repulsion done!')
-Epp = proton_proton_energy(unit_cell)
+
+Epp = proton_proton_energy(M)
+
+# density matrices initial guesses
+# and other useful matrices
+n_basis = len(CG_list)
+
+n_alpha = 3
+P_alpha = np.zeros((n_basis, n_basis))
+
+n_beta = 3
+P_beta = np.zeros((n_basis, n_basis)) 
+
+P_total = P_beta + P_alpha
+
+# S^(-1/2)
+S_12  = scp.linalg.sqrtm(np.linalg.inv(S))
+
+# SCF loop
+n_max = 100
+E_threshold = 1e-6
+E_old = np.inf
+
+H_core = T + Vep
+
+for i in range(n_max):
+    
+    # evaluation the coulomb and exchange operators
+    #J_alpha = coulomb_operator(Vee_, P_alpha)
+    #J_beta = coulomb_operator(Vee_, P_beta)
+    J = coulomb_operator(Vee_, P_total)
+
+    K_alpha = exchange_operator(Vee_, P_alpha) 
+    K_beta = exchange_operator(Vee_, P_beta) 
+
+    F_alpha = H_core + J - K_alpha
+    F_beta  = H_core + J - K_beta
+
+    # orthogonalisation of the Pople-Nesbet equations
+    Fu_alpha = S_12 @ F_alpha @ S_12
+    Fu_beta  = S_12 @ F_beta  @ S_12
+
+    # solving Pople-Nesbet equations
+    e_alpha, Cu_alpha = np.linalg.eigh(Fu_alpha)
+    e_beta , Cu_beta  = np.linalg.eigh(Fu_beta )
+    Cu_alpha = Cu_alpha[:, :n_alpha]
+    Cu_beta  = Cu_beta [:, :n_beta]
+
+    # reverse basis change
+    C_alpha = S_12 @ Cu_alpha
+    C_beta  = S_12 @ Cu_beta 
+
+    # new density matrices
+    P_alpha = C_alpha @ C_alpha.T
+    P_beta = C_beta @ C_beta.T
+
+    P_total = P_alpha + P_beta
+
+    # computing energy of the wf
+    E_core = np.sum(H_core * P_total)
+    E_coulomb = 0.5 * np.sum(J * P_total)
+    E_exchange = 0.5 * (np.sum(K_alpha * P_alpha) + np.sum(K_beta * P_beta))
+
+    E = E_core + E_coulomb - E_exchange
+
+    # check convergence
+    converged = abs(E-E_old)<E_threshold
+
+    # update E_old
+    E_old = E
+
+    if converged:
+        print(f"Converged in {i+1} iterations!")
+        break
+print("Finished!")
+
+print('Saving wavefunction coefficients and energies...')
+np.save('P_alpha.npy', P_alpha)
+np.save('P_beta.npy', P_beta)
+
+np.save('C_alpha.npy', C_alpha)
+np.save('C_beta.npy', C_beta)
+
+np.save('e_alpha.npy', e_alpha)
+np.save('e_beta.npy', e_beta)
+
+print("Saving wavefunction values...")
+"""
+n_r = 100
+n_theta = 50
+n_phi = 50
+
+r_vec = np.linspace(0.0, r_max, n_r, endpoint=False)
+phi_vec = np.linspace(0.0, np.pi, n_phi, endpoint=False)
+theta_vec = np.linspace(0.0, 2*np.pi, n_theta, endpoint=False)
+
+r_mesh, phi_mesh, theta_mesh = np.meshgrid(r_vec, phi_vec, theta_vec)
+
+r_mesh = r_mesh.flatten()
+phi_mesh = phi_mesh.flatten()
+theta_mesh = theta_mesh.flatten()
+"""
+npts = 200000
+r_mesh = np.random.uniform(size=npts, low=0.0, high=5.0)
+phi_mesh = np.random.uniform(size=npts, low=0.0, high=np.pi)
+theta_mesh = np.random.uniform(size=npts, low=0.0, high=2*np.pi)
+
+x_mesh = r_mesh * np.sin(phi_mesh) * np.cos(theta_mesh)
+y_mesh = r_mesh * np.sin(phi_mesh) * np.sin(theta_mesh)
+z_mesh = r_mesh * np.cos(phi_mesh)
+
+X = np.stack((x_mesh, y_mesh, z_mesh), axis=1)
+X = np.unique(X, axis=0)
+n = len(X)
+
+#del r_vec, phi_vec, theta_vec
+del r_mesh, phi_mesh, theta_mesh
+del x_mesh, y_mesh, z_mesh
+
+# evaluate CG at each mesh point
+CG_xyz_eval = []
+for CG in CG_list:
+    CG_xyz_eval.append(CG(X).flatten())
+CG_xyz_eval = np.array(CG_xyz_eval)
+#CG_xyz_product = np.einsum("ni,nj->nij", CG_xyz_eval, CG_xyz_eval)
+
+density_xyz = [] #np.einsum("ij,nij->n", P_total, CG_xyz_product)
+for ii in range(n):
+    density_ = 0.0
+    for i in range(n_basis):
+        for j in range(n_basis):
+            density_ += P_total[i, j] * CG_xyz_eval[i, ii] * CG_xyz_eval[j, ii]
+
+    density_xyz.append(density_)
+
+# save total wavefunction
+data = {
+    'x': X[:,0],
+    'y': X[:,1],
+    'z': X[:,2],
+    'rho': density_xyz
+}
+df = pd.DataFrame(data)
+df.to_csv('density_xyz.csv', index=False)
+
+# save each electron wavefunction
+for spin in ['alpha', 'beta']:
+    if spin=='alpha':
+        n_spin = n_alpha
+        P_spin = P_alpha
+        C_spin = C_alpha
+    else:
+        n_spin = n_beta
+        P_spin = P_beta
+        C_spin = C_beta
+
+    for nn in range(n_spin):
+        density_spin_nn_xyz = []
+        
+        for ii in range(n):
+            density_ = 0.0
+            for i in range(n_basis):
+                for j in range(n_basis):
+                    density_ +=  C_spin[i, nn] * C_spin[j, nn] * CG_xyz_eval[i, ii] * CG_xyz_eval[j, ii]
+
+            density_spin_nn_xyz.append(density_)
+
+        data = {
+            'x': X[:,0],
+            'y': X[:,1],
+            'z': X[:,2],
+            'rho': density_spin_nn_xyz
+        }
+        df = pd.DataFrame(data)
+        df.to_csv(f'density_{spin}_{nn+1}_xyz.csv', index=False)
+        
+print("Saved!")
+
