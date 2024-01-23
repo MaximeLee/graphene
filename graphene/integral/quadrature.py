@@ -73,7 +73,7 @@ Chebyshev_quadrature_points_01[:, 0] /= 2.0
 #############################
 # Lebedev quadrature points
 #############################
-Lebedev_quadrature = get_quadrature_points(precision=7, quadrature_type = "lebedev")
+Lebedev_quadrature = get_quadrature_points(precision=13, quadrature_type = "lebedev")
 Lebedev_weights = Lebedev_quadrature[:, 0:1]
 Lebedev_abscissa = Lebedev_quadrature[:, 1:]
 

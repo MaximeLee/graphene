@@ -1,5 +1,7 @@
 import numpy as np
 import math 
+from scipy.special import gamma
+
 from graphene.integral.quadrature import *
 from graphene.basis.gaussian import integral
 
@@ -112,3 +114,14 @@ class TestSphericalQuadrature:
         I = math.sqrt(pi/alpha)**3
         assert math.isclose(I_quad, I)
 
+    def test_cutoff_f(self):
+        alphas = np.linspace(1e-2, 1e2, 10) 
+
+        def f(x, alpha):
+            return np.exp(-alpha * np.linalg.norm(x, axis=1, keepdims=True)**4)
+
+        for alpha in alphas:
+            I_quad = 4*pi*np.sum(self.weights * self.subs * f(self.points, alpha))
+            print(I_quad, pi/alpha**(3/4)*gamma(3/4), alpha)
+            assert np.isclose(I_quad, pi/alpha**(3/4)*gamma(3/4))
+        

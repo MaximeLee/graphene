@@ -1,5 +1,6 @@
 """compute coulomb matrix from list of Contracted Gaussians"""
 import numpy as np
+from numba import jit
 from graphene.basis.gaussian import PrimitiveGaussian
 
 def electron_repulsion_operator_gaussian(CPG_list):
@@ -55,3 +56,21 @@ def electron_repulsion_operator_gaussian(CPG_list):
                                         )
                                     )
     return coulomb
+
+
+#@jit(cache=True, nopython=False, fastmath={'fast'})
+#@jit(cache=True, nopython=False, fastmath={'fast'})
+@jit(cache=True)
+def coulomb_operator(Vee_, P):
+    """Coulomb interaction
+
+    Vee : for electron integrals in AO basis
+    P   : density matrix
+    """
+    J = np.einsum("ijkl,kl->ij", Vee_, P)
+    return J
+
+@jit(cache=True)
+def exchange_operator(Vee_, P):
+    K = np.einsum("ilkj,kl->ij", Vee_, P)
+    return K

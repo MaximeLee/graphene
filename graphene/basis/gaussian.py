@@ -304,7 +304,7 @@ def electron_proton_int_jit(
 
     return I
 
-#@jit(parallel=True, cache=True, nopython=True, nogil=True, fastmath={'fast'})
+@jit(parallel=True, cache=True, nopython=True, nogil=True, fastmath={'fast'})
 def electron_electron_int_jit(
     a1,
     X1,
@@ -345,7 +345,7 @@ def electron_electron_int_jit(
     num_R3 = len(R3_quadrature_points)
     nk = len(Chebyshev_quadrature_points_01)
 
-    for k in range(nk):
+    for k in prange(nk):
         wkt = Chebyshev_quadrature_points_01[k,0]
         tk = Chebyshev_quadrature_points_01[k,1]
 
@@ -357,9 +357,9 @@ def electron_electron_int_jit(
 
         # integrating over R2
         #for (wk_xyz2, x2, y2, z2), subs2 in zip(R3_quadrature_points, subs):
-        for k2 in prange(num_R3):
+        for k2 in range(num_R3):
             wk_xyz2, x2, y2, z2 = R3_quadrature_points[k2]
-            subs2 = subs[k2,0]
+            subs2 = subs[k2, 0]
 
             R2 = np.array([[x2, y2, z2]]) + R2_bar # centering quadrature pts
             I_tmp_R1 = 1.0
